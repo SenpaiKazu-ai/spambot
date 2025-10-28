@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template
 import requests
 import concurrent.futures
 from requests.exceptions import RequestException
+import os   # ✅ ADD THIS LINE
 
 app = Flask(__name__)
 
@@ -24,7 +25,6 @@ def share_post():
         if not link or not access_token:
             return jsonify({"error": "Missing link or access token"}), 400
 
-        # Safety limit to avoid accidental huge bursts
         MAX_COUNT = 200
         if count < 1 or count > MAX_COUNT:
             return jsonify({"error": f"count must be between 1 and {MAX_COUNT}"}), 400
@@ -40,7 +40,6 @@ def share_post():
                     },
                     timeout=10
                 )
-                # try to parse json, fallback to text if not json
                 try:
                     return r.json()
                 except ValueError:
@@ -48,7 +47,6 @@ def share_post():
             except RequestException as e:
                 return {"error": str(e)}
 
-        # Use a session to reuse connections
         with requests.Session() as session:
             with concurrent.futures.ThreadPoolExecutor(max_workers=max(3, max_workers)) as ex:
                 futures = [ex.submit(_post_once, session) for _ in range(count)]
@@ -63,8 +61,10 @@ def share_post():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5000))   # ✅ use Railway port
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
