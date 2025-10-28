@@ -1,85 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Facebook Share Tool</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 500px;
-      margin: 40px auto;
-      text-align: center;
-    }
-    input, button {
-      padding: 10px;
-      margin: 10px;
-      width: 100%;
-    }
-    button {
-      background: #1877f2;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #145dbf;
-    }
-    small {
-      color: gray;
-      font-size: 12px;
-    }
-  </style>
-</head>
-<body>
-  <h2>Facebook Share Tool ⚙️</h2>
-  <p><small>© 2025 | This tool is for educational purposes only</small></p>
-
-  <input id="link" placeholder="Enter link to share">
-  <input id="token" placeholder="Enter access token">
-  <input id="count" type="number" placeholder="Number of shares (1–200)" value="5">
-
-  <button onclick="startShare()">Share Now</button>
-
-  <p id="status"></p>
-
-  <script>
-    async function startShare() {
-      const link = document.getElementById("link").value.trim();
-      const accessToken = document.getElementById("token").value.trim();
-      const count = parseInt(document.getElementById("count").value || "1");
-      const status = document.getElementById("status");
-
-      if (!link || !accessToken) {
-        status.textContent = "⚠ Please enter both link and access token.";
-        return;
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Share Tool</title>
+    <style>
+      :root {
+        --bg: radial-gradient(circle at 10% 10%, #0a1128 0%, #02020b 60%);
+        --text: #b8fff7;
+        --accent: #ff00bf;
+        --input-bg: rgba(255, 255, 255, 0.04);
       }
 
-      status.textContent = "⏳ Sending shares...";
+      body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        text-align: center;
+      }
 
-      try {
-        const res = await fetch("/api/share", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ link, accessToken, count })
-        });
+      h2 {
+        text-shadow: 0 0 8px #00fff9, 0 0 24px #ff00ff;
+        margin-bottom: 20px;
+      }
 
-        const data = await res.json();
-        if (data.error) {
-          status.textContent = "❌ " + data.error;
-        } else {
-          status.textContent = "✅ Done! Sent " + data.results.length + " share requests.";
-          console.log(data);
+      .panel {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 380px;
+      }
+
+      input, textarea {
+        width: 100%;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        background: var(--input-bg);
+        color: var(--text);
+        font-size: 15px;
+        outline: none;
+        box-sizing: border-box;
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #00FFF0, #FF00FF);
+        color: #000;
+        font-weight: bold;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 14px rgba(255, 0, 255, 0.2);
+      }
+
+      #result {
+        margin-top: 15px;
+        font-weight: bold;
+        font-size: 14px;
+      }
+
+      footer {
+        margin-top: 30px;
+        font-size: 13px;
+        color: #aaa;
+        opacity: 0.7;
+      }
+
+      /* 📱 Mobile Optimization */
+      @media (max-width: 480px) {
+        body {
+          padding: 10px;
         }
-      } catch (err) {
-        status.textContent = "❌ Request failed: " + err.message;
+        .panel {
+          padding: 18px;
+          max-width: 90%;
+        }
+        input, button {
+          font-size: 14px;
+        }
       }
-    }
-  </script>
-</body>
+    </style>
+  </head>
+  <body>
+    <h2>Facebook Graph API Share Tool</h2>
+
+    <div class="panel">
+      <input type="text" id="linkToPost" placeholder="Post link to share">
+      <input type="number" id="shareCount" min="1" value="1" placeholder="Number of shares">
+      <input type="text" id="accessToken" placeholder="Enter Access Token (EAAG...)">
+      <button onclick="sharePost()">Share</button>
+      <div id="result"></div>
+    </div>
+
+    <footer>⚠️ This tool is for educational and testing purposes only. Do not misuse.</footer>
+
+    <script>
+      async function sharePost() {
+        const link = document.getElementById("linkToPost").value.trim();
+        const accessToken = document.getElementById("accessToken").value.trim();
+        const count = parseInt(document.getElementById("shareCount").value);
+        const result = document.getElementById("result");
+
+        if (!link || !accessToken) {
+          result.innerHTML = "⚠️ Please fill in both the link and access token.";
+          return;
+        }
+
+        result.innerHTML = "⏳ Sharing in progress...";
+
+        try {
+          const res = await fetch("/api/share", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ link, accessToken, count })
+          });
+
+          const text = await res.text();
+
+          if (text.startsWith("<")) {
+            result.innerHTML = "❌ Server returned HTML instead of JSON.";
+            console.error(text);
+            return;
+          }
+
+          const data = JSON.parse(text);
+
+          if (data.results) {
+            const successCount = data.results.filter(r => !r.error).length;
+            result.innerHTML = `✅ Shared ${successCount}/${count} posts successfully.`;
+          } else if (data.error) {
+            result.innerHTML = `❌ Error: ${data.error}`;
+          } else {
+            result.innerHTML = "❌ Unknown error occurred.";
+          }
+        } catch (err) {
+          result.innerHTML = `⚠️ Request failed: ${err.message}`;
+        }
+      }
+    </script>
+  </body>
 </html>
 
-</footer>
 
   </body>
 </html>
+
 
