@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cookie Converter</title>
+    <style>
+      :root {
+        --bg: radial-gradient(circle at 10% 10%, #0a1128 0%, #02020b 60%);
+        --text: #b8fff7;
+        --accent: #ff00bf;
+        --input-bg: rgba(255, 255, 255, 0.04);
+      }
+      body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .card {
+        max-width: 720px;
+        margin: 40px auto;
+        background: rgba(255,255,255,0.05);
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+      }
+      textarea, input {
+        width: 100%;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border: 1px solid rgba(0,255,255,0.12);
+        background: var(--input-bg);
+        color: var(--text);
+        font-size: 15px;
+        outline: none;
+        resize: vertical;
+      }
+      button {
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(90deg,#00FFF0,#FF00FF);
+        color: #000;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .row { display: flex; gap: 8px; margin-top: 8px; }
+      .hint { font-size: 13px; color: #dfe; opacity: 0.8; margin-top: 8px; }
+      h3 { 
+        margin: 0 0 16px 0;
+        text-shadow: 0 0 8px #00fff9, 0 0 24px #ff00ff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h3>Cookie → Access Tokens</h3>
+      <label for="cookieInput">Paste cookie here</label>
+      <textarea id="cookieInput" rows="4" placeholder="cookie: ..."></textarea>
+
+      <div class="row">
+        <button id="convertBtn" type="button">Convert</button>
+        <button id="clearBtn" type="button">Clear</button>
+        <button id="copyToShareBtn" type="button">Copy to Share Page</button>
+      </div>
+
+      <div class="hint">Conversion is performed by the server endpoint on this app. Ensure the server can run any conversion logic you supply.</div>
+
+      <label for="tokensOutput" style="margin-top:12px; display:block;">Tokens (one per line)</label>
+      <textarea id="tokensOutput" rows="6" placeholder="Converted tokens will appear here"></textarea>
+
+      <div id="status" class="hint" aria-live="polite"></div>
+    </div>
+
+    <script>
+      const convertBtn = document.getElementById('convertBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const cookieInput = document.getElementById('cookieInput');
+      const tokensOutput = document.getElementById('tokensOutput');
+      const status = document.getElementById('status');
+      const copyToShareBtn = document.getElementById('copyToShareBtn');
+
+      clearBtn.addEventListener('click', () => {
+        cookieInput.value = '';
+        tokensOutput.value = '';
+        status.textContent = '';
+      });
+
+      convertBtn.addEventListener('click', async () => {
+        const cookie = (cookieInput.value || '').trim();
+        if (!cookie) {
+          status.textContent = 'Please paste a cookie to convert.';
+          return;
+        }
+        status.textContent = 'Converting... (this may take a few seconds)';
+        try {
+          const resp = await fetch('/convert-cookie', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cookie })
+          });
+          
+          if (!resp.ok) {
+            const text = await resp.text();
+            status.textContent = 'Conversion failed: ' + text;
+            return;
+          }
+
+          const data = await resp.json();
+          if (data.tokens) {
+            tokensOutput.value = data.tokens;
+            status.textContent = data.message || 'Conversion successful!';
+          } else {
+            status.textContent = 'No tokens were generated.';
+          }
+        } catch (err) {
+          status.textContent = 'Error: ' + err.message;
+        }
+      });
+
+      copyToShareBtn.addEventListener('click', () => {
+        const tokens = tokensOutput.value.trim();
+        if (!tokens) {
+          status.textContent = 'No tokens to copy.';
+          return;
+        }
+
+        // Try to send tokens to opener window
+        if (window.opener && !window.opener.closed) {
+          try {
+            window.opener.postMessage({ type: 'convertedTokens', tokens }, '*');
+            status.textContent = 'Tokens sent to share page.';
+            return;
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        // Fallback to clipboard
+        navigator.clipboard.writeText(tokens)
+          .then(() => status.textContent = 'Tokens copied to clipboard.')
+          .catch(() => status.textContent = 'Please copy tokens manually.');
+      });
+
+      // Listen for messages (if share page requests tokens or to receive confirmation)
+      window.addEventListener('message', (ev) => {
+        // no-op placeholder; converter can accept messages if needed
+      });
+    </script>
+  </body>
+</html>
