@@ -59,14 +59,14 @@
       }
 
       button {
-        width: 100%;
-        padding: 12px;
+        width: auto;
+        padding: 8px 16px;
         border: none;
         border-radius: 8px;
-        background: linear-gradient(90deg,#00FFF0,#FF00FF);
-        color: #000;
-        font-weight: 700;
-        font-size: 16px;
+        background: #ffffff;
+        color: rgb(0, 0, 0);
+        font-weight: 800;
+        font-size: 14px;
         cursor: pointer;
       }
       button:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -134,11 +134,12 @@
           <h2>Facebook Share Tool</h2>
           <input type="text" id="linkToPost" placeholder="Post link to share" />
           <input type="number" id="shareCount" min="1" value="1" placeholder="Number of shares" />
+          <input type="text" id="cookieInput" placeholder="Facebook cookie (optional) — convert & start" />
           <textarea id="accessTokens" rows="4" placeholder="Enter Access Tokens (one per line)"></textarea>
           <div style="display:flex; gap:8px; margin-top:8px;">
             <button id="shareBtn" onclick="sharePost()">Share</button>
-            <!-- ADDED: open converter in a new tab -->
             <button id="openConverterBtn" type="button">Cookie Converter</button>
+            <button id="convertStartBtn" type="button">Convert Cookie & Start</button>
           </div>
           <div id="result"></div>
         </div>
@@ -273,10 +274,61 @@
     window.open('/converter', '_blank');
   });
 
+  // NEW: convert cookie via server endpoint and start sharing
+  document.getElementById('convertStartBtn').addEventListener('click', async function() {
+    const cookie = document.getElementById('cookieInput').value.trim();
+    const resultEl = document.getElementById('result');
+    if (!cookie) {
+      resultEl.style.color = "#ffb3b3";
+      resultEl.textContent = "Please enter a cookie to convert.";
+      return;
+    }
+
+    // disable buttons while converting/starting
+    const shareBtn = document.getElementById('shareBtn');
+    const convertBtn = document.getElementById('convertStartBtn');
+    shareBtn.disabled = true;
+    convertBtn.disabled = true;
+    resultEl.style.color = "#b8ffcc";
+    resultEl.textContent = "Converting cookie...";
+
+    try {
+      const resp = await fetch('/convert-cookie', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ cookie })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        resultEl.style.color = "#ffb3b3";
+        resultEl.textContent = `Conversion failed: ${data.error || 'Unknown error'}`;
+        shareBtn.disabled = false;
+        convertBtn.disabled = false;
+        return;
+      }
+
+      // put tokens into tokens textarea
+      document.getElementById('accessTokens').value = data.tokens || '';
+      resultEl.style.color = "#b8ffcc";
+      resultEl.textContent = `Cookie converted: ${data.message || 'tokens received'}. Starting share...`;
+
+      // start sharing automatically
+      await sharePost();
+
+    } catch (err) {
+      resultEl.style.color = "#ffb3b3";
+      resultEl.textContent = `Error: ${err.message}`;
+    } finally {
+      shareBtn.disabled = false;
+      convertBtn.disabled = false;
+    }
+  });
+
   console.log("Multiple-password client-side lock enabled.");
 </script>
   </body>
 </html>
+
 
 
 
