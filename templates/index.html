@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook Share Tool</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Facebook Share Tool — Password</title>
     <style>
       :root {
         --bg: radial-gradient(circle at 10% 10%, #0a1128 0%, #02020b 60%);
@@ -11,33 +11,38 @@
         --accent: #ff00bf;
         --input-bg: rgba(255, 255, 255, 0.04);
       }
-
+      * { box-sizing: border-box; }
       body {
         font-family: 'Segoe UI', Arial, sans-serif;
         background: var(--bg);
         color: var(--text);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
         margin: 0;
         padding: 20px;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      .container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 40px);
         text-align: center;
       }
 
-      h2 {
-        text-shadow: 0 0 8px #00fff9, 0 0 24px #ff00ff;
-        margin-bottom: 20px;
-      }
-
       .panel {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255,255,255,0.05);
         padding: 25px;
         border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.3);
         width: 100%;
-        max-width: 380px;
+        max-width: 420px;
+      }
+
+      h2 {
+        margin: 0 0 16px 0;
+        text-shadow: 0 0 8px #00fff9, 0 0 24px #ff00ff;
       }
 
       input, textarea {
@@ -45,12 +50,12 @@
         padding: 10px;
         margin: 8px 0;
         border-radius: 8px;
-        border: 1px solid rgba(0, 255, 255, 0.15);
+        border: 1px solid rgba(0,255,255,0.12);
         background: var(--input-bg);
         color: var(--text);
         font-size: 15px;
         outline: none;
-        box-sizing: border-box;
+        resize: vertical;
       }
 
       button {
@@ -58,110 +63,220 @@
         padding: 12px;
         border: none;
         border-radius: 8px;
-        background: linear-gradient(90deg, #00FFF0, #FF00FF);
+        background: linear-gradient(90deg,#00FFF0,#FF00FF);
         color: #000;
-        font-weight: bold;
+        font-weight: 700;
         font-size: 16px;
         cursor: pointer;
-        margin-top: 10px;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
       }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-      button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 14px rgba(255, 0, 255, 0.2);
+      #result { margin-top: 12px; font-weight: 600; min-height: 20px; }
+
+      footer { margin-top: 20px; font-size: 13px; color: #aaa; opacity: 0.9; text-align:center; }
+
+      /* LOGIN OVERLAY */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.65));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 20px;
       }
-
-      #result {
-        margin-top: 15px;
-        font-weight: bold;
-        font-size: 14px;
+      .login-box {
+        width: 100%;
+        max-width: 420px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+        text-align: left;
       }
+      .login-box h3 { margin-top: 0; color: var(--text); }
+      .hint { font-size:13px; color:#dfe; opacity:0.8; margin-top:8px; }
 
-      footer {
-        margin-top: 30px;
-        font-size: 13px;
-        color: #aaa;
-        opacity: 0.7;
-      }
-
-      /* 📱 Mobile Optimization */
-      @media (max-width: 480px) {
-        body {
-          padding: 10px;
-        }
-        .panel {
-          padding: 18px;
-          max-width: 90%;
-        }
-        input, button {
-          font-size: 14px;
-        }
+      @media (max-width:480px) {
+        .panel { padding: 18px; max-width: 92%; }
+        .login-box { padding: 16px; }
       }
     </style>
   </head>
-  <body>
-    <h2>Facebook Graph API Share Tool</h2>
 
-    <div class="panel">
-      <input type="text" id="linkToPost" placeholder="Post link to share">
-      <input type="number" id="shareCount" min="1" value="1" placeholder="Number of shares">
-      <input type="text" id="accessToken" placeholder="Enter Access Token (EAAG...)">
-      <button onclick="sharePost()">Share</button>
-      <div id="result"></div>
+  <body>
+    <!-- LOGIN OVERLAY: single password (client-side) -->
+    <div id="loginOverlay" class="overlay" aria-hidden="false">
+      <div class="login-box" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+        <h3 id="loginTitle">Enter password to continue</h3>
+
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="Password" />
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button id="loginBtn" type="button">Unlock</button>
+          <button id="clearBtn" type="button">Clear</button>
+        </div>
+
+        <div id="loginMsg" class="hint" aria-live="polite"></div>
+
+        <div class="hint" style="margin-top:12px;">
+          Ask Dev For Password https://www.facebook.com/sammy.trisha01.
+        </div>
+      </div>
     </div>
 
-    <footer>⚠️ This tool is for educational and testing purposes only. Do not misuse.</footer>
+    <!-- MAIN CONTENT (hidden until password accepted) -->
+    <div id="app" style="display:none;">
+      <div class="container">
+        <div class="panel">
+          <h2>Facebook Share Tool</h2>
+          <input type="text" id="linkToPost" placeholder="Post link to share" />
+          <input type="number" id="shareCount" min="1" value="1" placeholder="Number of shares" />
+          <textarea id="accessTokens" rows="4" placeholder="Enter Access Tokens (one per line)"></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button id="shareBtn" onclick="sharePost()">Share</button>
+            <!-- ADDED: open converter in a new tab -->
+            <button id="openConverterBtn" type="button">Cookie Converter</button>
+          </div>
+          <div id="result"></div>
+        </div>
+      </div>
+
+      <footer>⚠️ This tool is for educational and testing purposes only. Do not misuse. Owned by [Sammy Canlaon and Noriko]</footer>
+    </div>
 
     <script>
-      async function sharePost() {
-        const link = document.getElementById("linkToPost").value.trim();
-        const accessToken = document.getElementById("accessToken").value.trim();
-        const count = parseInt(document.getElementById("shareCount").value);
-        const result = document.getElementById("result");
+  /********************
+   * CONFIG — multiple passwords (client-side only)
+   ********************/
+  const PAGE_PASSWORDS = [
+    "SenpaiKazu123",
+    "BrookDev2025",
+    "NorikoAccess",
+    "TestUser01"
+  ];
+  /********************/
 
-        if (!link || !accessToken) {
-          result.innerHTML = "⚠️ Please fill in both the link and access token.";
-          return;
-        }
+  // Elements
+  const overlay = document.getElementById("loginOverlay");
+  const loginBtn = document.getElementById("loginBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const loginMsg = document.getElementById("loginMsg");
+  const passwordInput = document.getElementById("password");
+  const app = document.getElementById("app");
 
-        result.innerHTML = "⏳ Sharing in progress...";
+  // Auto-unlock if session already validated
+  if (sessionStorage.getItem("siteUnlocked") === "true") {
+    unlockAndHideOverlay();
+  }
 
-        try {
-          const res = await fetch("/api/share", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ link, accessToken, count })
-          });
+  loginBtn.addEventListener("click", handleLogin);
+  clearBtn.addEventListener("click", () => {
+    passwordInput.value = "";
+    loginMsg.textContent = "";
+  });
 
-          const text = await res.text();
+  passwordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleLogin();
+  });
 
-          if (text.startsWith("<")) {
-            result.innerHTML = "❌ Server returned HTML instead of JSON.";
-            console.error(text);
+  function handleLogin() {
+    const pass = (passwordInput.value || "").trim();
+
+    if (!pass) {
+      loginMsg.style.color = "#ffd27a";
+      loginMsg.textContent = "Please enter the password.";
+      return;
+    }
+
+    // Check if password is in allowed list
+    if (PAGE_PASSWORDS.includes(pass)) {
+      sessionStorage.setItem("siteUnlocked", "true");
+      loginMsg.style.color = "#b8ffcc";
+      loginMsg.textContent = "Welcome — unlocking...";
+      setTimeout(() => unlockAndHideOverlay(), 250);
+    } else {
+      loginMsg.style.color = "#ffb3b3";
+      loginMsg.textContent = "Incorrect password.";
+      passwordInput.value = "";
+      passwordInput.focus();
+    }
+  }
+
+  function unlockAndHideOverlay() {
+    overlay.style.display = "none";
+    app.style.display = "block";
+  }
+
+  // Add the missing sharePost function
+  async function sharePost() {
+    const link = document.getElementById('linkToPost').value.trim();
+    const count = parseInt(document.getElementById('shareCount').value) || 1;
+    const tokens = document.getElementById('accessTokens').value.trim().split('\n').filter(t => t);
+    const result = document.getElementById('result');
+
+    if (!link) {
+      result.style.color = "#ffb3b3";
+      result.textContent = "Please enter a link to share";
+      return;
+    }
+
+    if (!tokens.length) {
+      result.style.color = "#ffb3b3";
+      result.textContent = "Please enter at least one access token";
+      return;
+    }
+
+    result.style.color = "#b8ffcc";
+    result.textContent = "Sharing...";
+
+    try {
+        const response = await fetch('/api/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                link,
+                accessToken: tokens,
+                count
+            })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            result.style.color = "#ffb3b3";
+            result.textContent = `Error: ${data.error || 'Unknown error'}`;
             return;
-          }
-
-          const data = JSON.parse(text);
-
-          if (data.results) {
-            const successCount = data.results.filter(r => !r.error).length;
-            result.innerHTML = `✅ Shared ${successCount}/${count} posts successfully.`;
-          } else if (data.error) {
-            result.innerHTML = `❌ Error: ${data.error}`;
-          } else {
-            result.innerHTML = "❌ Unknown error occurred.";
-          }
-        } catch (err) {
-          result.innerHTML = `⚠️ Request failed: ${err.message}`;
         }
-      }
-    </script>
+
+        const summary = data.summary;
+        result.style.color = "#b8ffcc";
+        result.textContent = `Share complete: ${summary.successful_shares} successful, ${summary.failed_shares} failed out of ${summary.total_attempts} attempts`;
+    } catch (err) {
+        result.style.color = "#ffb3b3";
+        result.textContent = `Error: ${err.message}`;
+    }
+  }
+
+  // Listen for converted tokens from converter window
+  window.addEventListener('message', (event) => {
+    if (event.data.type === 'convertedTokens') {
+      document.getElementById('accessTokens').value = event.data.tokens;
+      document.getElementById('result').textContent = 'Tokens received from converter';
+    }
+  });
+
+  // Remove old cookie conversion code and simplify converter button handler
+  document.getElementById('openConverterBtn').addEventListener('click', function() {
+    window.open('/converter', '_blank');
+  });
+
+  console.log("Multiple-password client-side lock enabled.");
+</script>
   </body>
 </html>
 
-
-  </body>
-</html>
 
 
