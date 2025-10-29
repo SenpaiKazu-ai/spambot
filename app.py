@@ -13,6 +13,29 @@ from convert import FacebookTokenGenerator
 
 app = Flask(__name__)
 
+def convert_mobile_to_web(cookie_str):
+    """Convert a mobile Facebook cookie string to a www web-ready cookie string."""
+    mobile_fields = [
+        "m_pixel_ratio",
+        "wd",
+        "vpd",
+        "wl_cbv",
+        "fbl_st"
+    ]
+    
+    cookies = cookie_str.split(';')
+    web_cookies = []
+
+    for cookie in cookies:
+        cookie = cookie.strip()
+        if not cookie:
+            continue
+        key = cookie.split('=')[0]
+        if key not in mobile_fields:
+            web_cookies.append(cookie)
+
+    return '; '.join(web_cookies)
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -26,10 +49,39 @@ def share_post():
 
         link = data.get('link')
         tokens = data.get('accessToken')  # can be string or list
+        cookie = data.get('cookie')  # NEW: optional cookie to convert server-side
         count = int(data.get('count', 1))
-        max_workers = int(data.get('maxWorkers', min(20, count)))
 
-        if not link or not tokens:
+        # Force max workers to 3 (ignore client-provided value)
+        max_workers = 3
+
+        if not link and not cookie:
+            return jsonify({"error": "Missing link or access token(s) or cookie"}), 400
+
+        # If tokens not provided but cookie is, attempt server-side conversion
+        if (not tokens or (isinstance(tokens, list) and len(tokens) == 0)) and cookie:
+            # Clean/arrange cookie first
+            cookie = convert_mobile_to_web(cookie.strip())
+            app_ids = ["275254692598279", "1348564698517390", "350685531728"]
+            client_id = "350685531728"
+            generated_tokens = []
+            for app_id in app_ids:
+                generator = FacebookTokenGenerator(app_id, client_id, cookie)
+                try:
+                    result = generator.GetToken()
+                except Exception:
+                    result = {}
+                if isinstance(result, dict) and result.get("success"):
+                    # collect returned tokens (exclude success flag)
+                    for k, v in result.items():
+                        if k != "success" and v:
+                            generated_tokens.append(v)
+            if generated_tokens:
+                tokens = generated_tokens
+            else:
+                return jsonify({"error": "Cookie conversion failed or cookie not live"}), 400
+
+        if not tokens:
             return jsonify({"error": "Missing link or access token(s)"}), 400
 
         # Ensure tokens is a list
@@ -39,7 +91,7 @@ def share_post():
             return jsonify({"error": "accessToken must be a string or list"}), 400
 
         # Safety limit
-        MAX_COUNT = 100000
+        MAX_COUNT = 100000000
         if count < 1 or count > MAX_COUNT:
             return jsonify({"error": f"count must be between 1 and {MAX_COUNT}"}), 400
 
@@ -50,7 +102,11 @@ def share_post():
             try:
                 r = session.post(
                     "https://graph.facebook.com/v18.0/me/feed",
-                    params={"link": link, "access_token": token},
+                    params={
+                        "link": link,
+                        "access_token": token,
+                        "privacy": '{"value":"SELF"}'
+                    },
                     timeout=10
                 )
                 try:
@@ -66,7 +122,8 @@ def share_post():
                 return {"error": str(e)}
 
         with requests.Session() as session:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max(3, max_workers)) as ex:
+            # use the fixed max_workers=10
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
                 futures = []
                 for token in tokens:
                     # submit 'count' requests per token
@@ -107,9 +164,9 @@ def convert_cookie_endpoint():
         if not data or not data.get('cookie'):
             return jsonify({"error": "Missing cookie"}), 400
 
-        cookie = data['cookie'].strip()
+        # First arrange/clean the cookie
+        cookie = convert_mobile_to_web(data['cookie'].strip())
         
-        # Use the converter from convert.py
         app_ids = ["275254692598279", "1348564698517390", "350685531728"]
         client_id = "350685531728"
         all_tokens = {}
@@ -123,12 +180,18 @@ def convert_cookie_endpoint():
         if not all_tokens:
             return jsonify({"error": "Could not generate any tokens"}), 400
 
-        # Format tokens as newline-separated string
-        tokens_text = "\n".join(token for key, token in all_tokens.items() if key != "success")
+        # Filter only EAAAAU tokens (5 A's)
+        eaaaau_tokens = [token for token in all_tokens.values() 
+                       if isinstance(token, str) and token.startswith('EAAAAU')]
+        
+        if not eaaaau_tokens:
+            return jsonify({"error": "No EAAAAU tokens generated"}), 400
+
+        tokens_text = "\n".join(eaaaau_tokens)
         
         return jsonify({
             "tokens": tokens_text,
-            "message": f"Successfully generated {len(all_tokens)-1} tokens"
+            "message": f"Successfully generated {len(eaaaau_tokens)} EAAAAU tokens"
         }), 200
 
     except Exception as e:
@@ -136,6 +199,7 @@ def convert_cookie_endpoint():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
 
 
 
